@@ -104,6 +104,9 @@ tapocontroller.prototype.statusChanged = function(state) {
 	}
 	if (state.status == STATE.PAUSE && self.previousState.status != STATE.PAUSE){
 		self.logger.info("TAPO PAUSE");
+		this.device.turnOff().then(() => {
+			self.logger.info("Device turned off successfully");
+		});
 	}
 	if (state.status == STATE.STOP && self.previousState.status != STATE.STOP){
 		self.logger.info("TAPO STOP - Turning device OFF");
@@ -111,11 +114,12 @@ tapocontroller.prototype.statusChanged = function(state) {
 		this.device.turnOff().then(() => {
 			self.logger.info("Device turned off successfully");
 		});
+	}
 
 	// Remember previous state
 	self.previousState = state;
 	self.logger.info("Updated previousState to: " + JSON.stringify(self.previousState));
-}
+};
 
 
 tapocontroller.prototype.onRestart = function() {
