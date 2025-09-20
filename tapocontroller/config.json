@@ -1,0 +1,19 @@
+
+{
+  "enabled": {
+    "type": "boolean",
+    "value": false
+  },
+  "tapoEmail": {
+      "type": "string",
+      "value": ""
+  },
+  "tapoPassword": {
+    "type": "string",
+    "value": ""
+  },
+  "tapoIp": {
+    "type": "string",
+    "value": "192.168.1.94"
+  }
+}

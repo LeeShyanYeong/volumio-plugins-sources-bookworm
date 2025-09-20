@@ -1,0 +1,47 @@
+{
+  "page": {
+    "label": "TRANSLATE.PLUGIN_CONFIGURATION"
+  },
+  "sections": [
+    {
+      "id": "account_section",
+      "element": "section",
+      "label": "TRANSLATE.TAPO_ACCOUNT",
+      "icon": "fa-user",
+      "content": [
+        {
+          "id": "tapoEmail",
+          "element": "input",
+          "type": "text",
+          "label": "TRANSLATE.TAPO_EMAIL",
+          "value": "",
+          "placeholder": "your-tapo-account@example.com"
+        },
+        {
+          "id": "tapoPassword",
+          "element": "input",
+          "type": "password",
+          "label": "TRANSLATE.TAPO_PASSWORD",
+          "value": "",
+          "placeholder": "Enter your Tapo account password"
+        },
+        {
+          "id": "tapoIp",
+          "element": "input",
+          "type": "text",
+          "label": "TRANSLATE.TAPO_IP",
+          "value": "",
+          "placeholder": "192.168.1.100"
+        }
+      ]
+    }
+  ],
+  "saveButton": {
+    "label": "TRANSLATE.SAVE",
+    "data": [
+      "tapoEmail",
+      "tapoPassword",
+      "tapoIp"
+    ]
+  }
+}
