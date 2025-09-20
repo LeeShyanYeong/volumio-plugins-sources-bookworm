@@ -30,6 +30,7 @@
 	"dependencies": {
 		"fs-extra": "^0.28.0",
 		"kew": "^0.7.0",
+		"tp-link-tapo-connect": "^2.0.8",
 		"v-conf": "^1.4.0"
 	}
 }

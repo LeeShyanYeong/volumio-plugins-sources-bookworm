@@ -2,7 +2,7 @@
 {
   "enabled": {
     "type": "boolean",
-    "value": false
+    "value": true
   },
   "tapoEmail": {
       "type": "string",

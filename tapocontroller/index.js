@@ -48,7 +48,7 @@ tapocontroller.prototype.onStop = function() {
     // Once the Plugin has successfull stopped resolve the promise
     defer.resolve();
 
-    return libQ.resolve();
+    return defer.promise;
 };
 
 tapocontroller.prototype.onRestart = function() {
