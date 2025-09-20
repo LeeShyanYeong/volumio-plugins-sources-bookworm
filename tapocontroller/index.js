@@ -5,6 +5,18 @@ var fs=require('fs-extra');
 var config = new (require('v-conf'))();
 var exec = require('child_process').exec;
 var execSync = require('child_process').execSync;
+const { loginDeviceByIp, turnOn, turnOff, getDeviceInfo } = require('tp-link-tapo-connect');
+
+const io = require('socket.io-client');
+const sleep = require('sleep');
+var socket = null;
+
+// State enum
+const STATE = {
+	PLAY: "play",
+	PAUSE: "pause",
+	STOP: "stop"
+};
 
 
 module.exports = tapocontroller;
@@ -15,7 +27,7 @@ function tapocontroller(context) {
 	this.commandRouter = this.context.coreCommand;
 	this.logger = this.context.logger;
 	this.configManager = this.context.configManager;
-
+	this.previousState = { status: "" };
 }
 
 
@@ -27,16 +39,37 @@ tapocontroller.prototype.onVolumioStart = function()
 	this.config = new (require('v-conf'))();
 	this.config.loadFile(configFile);
 
+	this.email = this.config.get('tapoEmail');
+	this.password = this.config.get('tapoPassword');
+	this.deviceIp = this.config.get('tapoIp');
+
+
     return libQ.resolve();
 }
-
 tapocontroller.prototype.onStart = function() {
     var self = this;
 	var defer=libQ.defer();
-	self.logger.info("Tapocontroller started");
+    self.logger.info("Tapocontroller started");
+	socket = io.connect("http://localhost:3000");
 
-	// Once the Plugin has successfull started resolve the promise
-	defer.resolve();
+	// read and parse status once
+	self.logger.info("Requesting initial state from Volumio");
+	socket.emit("getState", "");
+	socket.once("pushState", self.statusChanged.bind(self));
+	socket.on("pushState", self.statusChanged.bind(self));
+
+	this.logger.info('Tapo Email: ' + this.email);
+	this.logger.info('Tapo IP: ' + this.deviceIp);
+	this.logger.info('Tapo Password: ' + this.password);
+
+	loginDeviceByIp(this.config.get('tapoEmail'), this.config.get('tapoPassword'), this.config.get('tapoIp')).then((deviceToken) => {
+		self.logger.info("Device token obtained");
+		this.device = deviceToken;
+	  	defer.resolve();
+
+	}).catch((error) => {
+		self.logger.error("Error logging in: " + error);
+	});
 
     return defer.promise;
 };
@@ -44,18 +77,68 @@ tapocontroller.prototype.onStart = function() {
 tapocontroller.prototype.onStop = function() {
     var self = this;
     var defer=libQ.defer();
-
-    // Once the Plugin has successfull stopped resolve the promise
-    defer.resolve();
-
+    self.logger.info("Tapocontroller stopped");
+ 	defer.resolve();
     return defer.promise;
 };
+
+let play = false;
+
+tapocontroller.prototype.statusChanged = function(state) {
+	const self = this;
+
+	self.logger.info("=== statusChanged function called ===");
+	self.logger.info("Received state: " + JSON.stringify(state));
+	self.logger.info("Previous state: " + JSON.stringify(self.previousState));
+	self.logger.info(`Current status: ${state.status}`);
+	self.logger.info(`Previous status: ${self.previousState.status}`);
+
+	// Player status
+	if (state.status == STATE.PLAY && self.previousState.status != STATE.PLAY){
+		self.logger.info("TAPO PLAY - Turning device ON");
+
+		this.device.turnOn().then(() => {
+				self.logger.info("Device turned on successfully");
+		});
+
+	}
+	if (state.status == STATE.PAUSE && self.previousState.status != STATE.PAUSE){
+		self.logger.info("TAPO PAUSE");
+	}
+	if (state.status == STATE.STOP && self.previousState.status != STATE.STOP){
+		self.logger.info("TAPO STOP - Turning device OFF");
+
+		this.device.turnOff().then(() => {
+			self.logger.info("Device turned off successfully");
+		});
+
+	// Remember previous state
+	self.previousState = state;
+	self.logger.info("Updated previousState to: " + JSON.stringify(self.previousState));
+}
+
 
 tapocontroller.prototype.onRestart = function() {
     var self = this;
     // Optional, use if you need it
 };
 
+
+tapocontroller.prototype.saveOptions = function (data) {
+	const self = this;
+
+	this.logger.info('tapoController - saving settings');
+
+	this.config.set('tapoEmail', data['tapoEmail'] || 'leeshyanyeong');
+	this.config.set('tapoPassword', data['tapoPassword'] || 'asdasdasd');
+	this.config.set('tapoIp', data['tapoIp'] || '192.168.1.96');
+
+	this.commandRouter.pushToastMessage('success', 'tapoController', this.commandRouter.getI18nString("COMMON.CONFIGURATION_UPDATE_DESCRIPTION"));
+
+	this.logger.info('tapoController - settings saved');
+
+	return libQ.resolve();
+};
 
 // Configuration Methods -----------------------------------------------------------------------------
 
@@ -70,7 +153,9 @@ tapocontroller.prototype.getUIConfig = function() {
         __dirname + '/UIConfig.json')
         .then(function(uiconf)
         {
-
+            uiconf.sections[0].content[0].value = self.config.get('tapoEmail');
+            uiconf.sections[0].content[1].value = self.config.get('tapoPassword');
+            uiconf.sections[0].content[2].value = self.config.get('tapoIp');
 
             defer.resolve(uiconf);
         })

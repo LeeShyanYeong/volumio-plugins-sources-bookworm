@@ -8,6 +8,19 @@
       "element": "section",
       "label": "TRANSLATE.TAPO_ACCOUNT",
       "icon": "fa-user",
+      "onSave": {
+        "type": "controller",
+        "endpoint": "system_controller/tapocontroller",
+        "method": "saveOptions"
+      },
+      "saveButton": {
+      "label": "TRANSLATE.SAVE",
+      "data": [
+        "tapoEmail",
+        "tapoPassword",
+        "tapoIp"
+      ]
+      },
       "content": [
         {
           "id": "tapoEmail",
@@ -35,13 +48,6 @@
         }
       ]
     }
-  ],
-  "saveButton": {
-    "label": "TRANSLATE.SAVE",
-    "data": [
-      "tapoEmail",
-      "tapoPassword",
-      "tapoIp"
-    ]
-  }
+  ]
+
 }
