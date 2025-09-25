@@ -15,5 +15,9 @@
   "tapoIp": {
     "type": "string",
     "value": ""
+  },
+  "IdleOffTimeOut": {
+    "type": "number",
+    "value": 10
   }
 }

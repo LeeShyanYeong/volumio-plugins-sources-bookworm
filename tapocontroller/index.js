@@ -28,9 +28,11 @@ function tapocontroller(context) {
 	this.logger = this.context.logger;
 	this.configManager = this.context.configManager;
 	this.previousState = { status: "" };
+	this.switchStarted = false;
+	this.IdleStartTime = Date.now();
+	this.idleTimer = null; // Initialize timer variable
+	
 }
-
-
 
 tapocontroller.prototype.onVolumioStart = function()
 {
@@ -38,11 +40,6 @@ tapocontroller.prototype.onVolumioStart = function()
 	var configFile=this.commandRouter.pluginManager.getConfigurationFile(this.context,'config.json');
 	this.config = new (require('v-conf'))();
 	this.config.loadFile(configFile);
-
-	this.email = this.config.get('tapoEmail');
-	this.password = this.config.get('tapoPassword');
-	this.deviceIp = this.config.get('tapoIp');
-
 
     return libQ.resolve();
 }
@@ -58,13 +55,13 @@ tapocontroller.prototype.onStart = function() {
 	socket.once("pushState", self.statusChanged.bind(self));
 	socket.on("pushState", self.statusChanged.bind(self));
 
-	this.logger.info('Tapo Email: ' + this.email);
-	this.logger.info('Tapo IP: ' + this.deviceIp);
-	this.logger.info('Tapo Password: ' + this.password);
-
 	loginDeviceByIp(this.config.get('tapoEmail'), this.config.get('tapoPassword'), this.config.get('tapoIp')).then((deviceToken) => {
 		self.logger.info("Device token obtained");
 		this.device = deviceToken;
+		
+		// Start the continuous timer loop to check idle timeout
+		self.startIdleTimeoutCheck();
+		
 	  	defer.resolve();
 
 	}).catch((error) => {
@@ -78,11 +75,74 @@ tapocontroller.prototype.onStop = function() {
     var self = this;
     var defer=libQ.defer();
     self.logger.info("Tapocontroller stopped");
+    
+    // Clear the idle timeout timer
+    if (this.idleTimer) {
+        clearInterval(this.idleTimer);
+        this.idleTimer = null;
+    }
+    
  	defer.resolve();
     return defer.promise;
 };
 
-let play = false;
+tapocontroller.prototype.startIdleTimeoutCheck = function() {
+    var self = this;
+    
+    // Clear any existing timer
+    if (this.idleTimer) {
+        clearInterval(this.idleTimer);
+    }
+    
+    // Start a timer that checks every 5 seconds
+    this.idleTimer = setInterval(function() {
+        self.checkIdleTimeout();
+    }, 5000); // Check every 5 seconds
+    
+    self.logger.info("Idle timeout check started - checking every 5 seconds");
+};
+
+tapocontroller.prototype.checkIdleTimeout = function() {
+    var self = this;
+
+    if (this.switchStarted && this.IdleStartTime != null) {
+        var currentTime = Date.now();
+        var idleTimeSeconds = Math.floor((currentTime - this.IdleStartTime) / 1000);
+        var timeoutSeconds = this.config.get('IdleOffTimeOut') || 10;
+        
+        self.logger.info(`Idle check - switchStarted: ${this.switchStarted}, idle time: ${idleTimeSeconds}s, timeout: ${timeoutSeconds}s`);
+        
+        if (idleTimeSeconds > timeoutSeconds) {
+            self.logger.info(`Idle timeout exceeded (${idleTimeSeconds}s > ${timeoutSeconds}s) - turning off device`);
+            
+            this.device.turnOff().then(() => {
+                self.logger.info("Device turned off due to idle timeout");
+                this.switchStarted = false;
+                this.IdleStartTime = null;
+            }).catch((error) => {
+                self.logger.error("Error turning off device: " + error);
+            });
+        }
+    }
+};
+
+tapocontroller.prototype.TapoStart = function() {
+    var self = this;
+	
+	this.IdleStartTime = null;
+	if(!this.switchStarted)
+	{
+		this.device.turnOn().then(() => {
+				self.logger.info("Device turned on successfully");
+		});
+		this.switchStarted = true;
+		
+	}
+};
+
+tapocontroller.prototype.TapoStop = function() {
+	this.IdleStartTime = Date.now();
+}
 
 tapocontroller.prototype.statusChanged = function(state) {
 	const self = this;
@@ -97,23 +157,17 @@ tapocontroller.prototype.statusChanged = function(state) {
 	if (state.status == STATE.PLAY && self.previousState.status != STATE.PLAY){
 		self.logger.info("TAPO PLAY - Turning device ON");
 
-		this.device.turnOn().then(() => {
-				self.logger.info("Device turned on successfully");
-		});
+		this.TapoStart();
 
 	}
 	if (state.status == STATE.PAUSE && self.previousState.status != STATE.PAUSE){
 		self.logger.info("TAPO PAUSE");
-		this.device.turnOff().then(() => {
-			self.logger.info("Device turned off successfully");
-		});
+		this.TapoStop();
 	}
 	if (state.status == STATE.STOP && self.previousState.status != STATE.STOP){
 		self.logger.info("TAPO STOP - Turning device OFF");
 
-		this.device.turnOff().then(() => {
-			self.logger.info("Device turned off successfully");
-		});
+		this.TapoStop();
 	}
 
 	// Remember previous state
@@ -133,9 +187,10 @@ tapocontroller.prototype.saveOptions = function (data) {
 
 	this.logger.info('tapoController - saving settings');
 
-	this.config.set('tapoEmail', data['tapoEmail'] || 'leeshyanyeong');
-	this.config.set('tapoPassword', data['tapoPassword'] || 'asdasdasd');
+	this.config.set('tapoEmail', data['tapoEmail'] || '');
+	this.config.set('tapoPassword', data['tapoPassword'] || '');
 	this.config.set('tapoIp', data['tapoIp'] || '192.168.1.96');
+	this.config.set('IdleOffTimeOut', data['IdleOffTimeOut'] || 10);
 
 	this.commandRouter.pushToastMessage('success', 'tapoController', this.commandRouter.getI18nString("COMMON.CONFIGURATION_UPDATE_DESCRIPTION"));
 
@@ -160,6 +215,7 @@ tapocontroller.prototype.getUIConfig = function() {
             uiconf.sections[0].content[0].value = self.config.get('tapoEmail');
             uiconf.sections[0].content[1].value = self.config.get('tapoPassword');
             uiconf.sections[0].content[2].value = self.config.get('tapoIp');
+			uiconf.sections[0].content[3].value = self.config.get('IdleOffTimeOut');
 
             defer.resolve(uiconf);
         })

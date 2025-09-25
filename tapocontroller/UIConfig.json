@@ -18,7 +18,8 @@
       "data": [
         "tapoEmail",
         "tapoPassword",
-        "tapoIp"
+        "tapoIp",
+        "IdleOffTimeOut"
       ]
       },
       "content": [
@@ -45,6 +46,14 @@
           "label": "TRANSLATE.TAPO_IP",
           "value": "",
           "placeholder": "192.168.1.100"
+        },
+        {
+          "id": "IdleOffTimeOut",
+          "element": "input",
+          "type": "text",
+          "label": "TRANSLATE.IDLE_OFF_TIMEOUT",
+          "value": 10,
+          "placeholder": "10"
         }
       ]
     }

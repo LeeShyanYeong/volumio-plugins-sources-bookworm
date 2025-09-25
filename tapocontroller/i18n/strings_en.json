@@ -4,5 +4,6 @@
   "TAPO_ACCOUNT": "Tapo Account Settings",
   "TAPO_EMAIL": "Tapo Account Email",
   "TAPO_PASSWORD": "Tapo Account Password",
-  "TAPO_IP": "Tapo Device IP Address"
+  "TAPO_IP": "Tapo Device IP Address",
+  "IDLE_OFF_TIMEOUT": "Idle Off Timeout (minutes)"
 }
